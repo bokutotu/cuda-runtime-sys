@@ -319,7 +319,8 @@ pub const cudaError_cudaErrorInvalidDeviceFunction: cudaError = 98;
 #[doc = " CUDA driver."]
 pub const cudaError_cudaErrorNoDevice: cudaError = 100;
 #[doc = " This indicates that the device ordinal supplied by the user does not"]
-#[doc = " correspond to a valid CUDA device."]
+#[doc = " correspond to a valid CUDA device or that the action requested is"]
+#[doc = " invalid for the specified device."]
 pub const cudaError_cudaErrorInvalidDevice: cudaError = 101;
 #[doc = " This indicates that the device doesn't have a valid Grid License."]
 pub const cudaError_cudaErrorDeviceNotLicensed: cudaError = 102;
@@ -396,6 +397,8 @@ pub const cudaError_cudaErrorUnsupportedPtxVersion: cudaError = 222;
 #[doc = " PTX. The runtime may fall back to compiling PTX if an application does not contain"]
 #[doc = " a suitable binary for the current device."]
 pub const cudaError_cudaErrorJitCompilationDisabled: cudaError = 223;
+#[doc = " This indicates that the provided execution affinity is not supported by the device."]
+pub const cudaError_cudaErrorUnsupportedExecAffinity: cudaError = 224;
 #[doc = " This indicates that the device kernel source is invalid."]
 pub const cudaError_cudaErrorInvalidSource: cudaError = 300;
 #[doc = " This indicates that the file specified was not found."]
@@ -545,6 +548,17 @@ pub const cudaError_cudaErrorSystemDriverMismatch: cudaError = 803;
 #[doc = " that only supported hardware is visible during initialization via the CUDA_VISIBLE_DEVICES"]
 #[doc = " environment variable."]
 pub const cudaError_cudaErrorCompatNotSupportedOnDevice: cudaError = 804;
+#[doc = " This error indicates that the MPS client failed to connect to the MPS control daemon or the MPS server."]
+pub const cudaError_cudaErrorMpsConnectionFailed: cudaError = 805;
+#[doc = " This error indicates that the remote procedural call between the MPS server and the MPS client failed."]
+pub const cudaError_cudaErrorMpsRpcFailure: cudaError = 806;
+#[doc = " This error indicates that the MPS server is not ready to accept new MPS client requests."]
+#[doc = " This error can be returned when the MPS server is in the process of recovering from a fatal failure."]
+pub const cudaError_cudaErrorMpsServerNotReady: cudaError = 807;
+#[doc = " This error indicates that the hardware resources required to create MPS client have been exhausted."]
+pub const cudaError_cudaErrorMpsMaxClientsReached: cudaError = 808;
+#[doc = " This error indicates the the hardware resources required to device connections have been exhausted."]
+pub const cudaError_cudaErrorMpsMaxConnectionsReached: cudaError = 809;
 #[doc = " The operation is not permitted when the stream is capturing."]
 pub const cudaError_cudaErrorStreamCaptureUnsupported: cudaError = 900;
 #[doc = " The current capture sequence on the stream has been invalidated due to"]
@@ -594,7 +608,6 @@ pub const cudaChannelFormatKind_cudaChannelFormatKindUnsigned: cudaChannelFormat
 pub const cudaChannelFormatKind_cudaChannelFormatKindFloat: cudaChannelFormatKind = 2;
 #[doc = "< No channel format"]
 pub const cudaChannelFormatKind_cudaChannelFormatKindNone: cudaChannelFormatKind = 3;
-#[doc = "< Unsigned 8-bit integers, planar 4:2:0 YUV format"]
 pub const cudaChannelFormatKind_cudaChannelFormatKindNV12: cudaChannelFormatKind = 4;
 #[doc = " Channel format kind"]
 pub type cudaChannelFormatKind = ::libc::c_uint;
@@ -2903,7 +2916,7 @@ pub const cudaDeviceAttr_cudaDevAttrReserved93: cudaDeviceAttr = 93;
 pub const cudaDeviceAttr_cudaDevAttrReserved94: cudaDeviceAttr = 94;
 #[doc = "< Device supports launching cooperative kernels via ::cudaLaunchCooperativeKernel"]
 pub const cudaDeviceAttr_cudaDevAttrCooperativeLaunch: cudaDeviceAttr = 95;
-#[doc = "< Device can participate in cooperative kernels launched via ::cudaLaunchCooperativeKernelMultiDevice"]
+#[doc = "< Deprecated, cudaLaunchCooperativeKernelMultiDevice is deprecated."]
 pub const cudaDeviceAttr_cudaDevAttrCooperativeMultiDeviceLaunch: cudaDeviceAttr = 96;
 #[doc = "< The maximum optin shared memory per block. This value may vary by chip. See ::cudaFuncSetAttribute"]
 pub const cudaDeviceAttr_cudaDevAttrMaxSharedMemoryPerBlockOptin: cudaDeviceAttr = 97;
@@ -2939,6 +2952,7 @@ pub const cudaDeviceAttr_cudaDevAttrGPUDirectRDMAFlushWritesOptions: cudaDeviceA
 pub const cudaDeviceAttr_cudaDevAttrGPUDirectRDMAWritesOrdering: cudaDeviceAttr = 118;
 #[doc = "< Handle types supported with mempool based IPC"]
 pub const cudaDeviceAttr_cudaDevAttrMemoryPoolSupportedHandleTypes: cudaDeviceAttr = 119;
+pub const cudaDeviceAttr_cudaDevAttrMax: cudaDeviceAttr = 120;
 #[doc = " CUDA device attributes"]
 pub type cudaDeviceAttr = ::libc::c_uint;
 #[doc = " (value type = int)"]
@@ -3234,6 +3248,113 @@ impl Default for cudaMemPoolPtrExportData {
         unsafe { ::std::mem::zeroed() }
     }
 }
+#[doc = " Memory allocation node parameters"]
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct cudaMemAllocNodeParams {
+    #[doc = "< in: array of memory access descriptors. Used to describe peer GPU access"]
+    pub poolProps: cudaMemPoolProps,
+    #[doc = "< in: number of memory access descriptors.  Must not exceed the number of GPUs."]
+    pub accessDescs: *const cudaMemAccessDesc,
+    #[doc = "< in: Number of `accessDescs`s"]
+    pub accessDescCount: size_t,
+    #[doc = "< in: size in bytes of the requested allocation"]
+    pub bytesize: size_t,
+    #[doc = "< out: address of the allocation returned by CUDA"]
+    pub dptr: *mut ::libc::c_void,
+}
+#[test]
+fn bindgen_test_layout_cudaMemAllocNodeParams() {
+    assert_eq!(
+        ::std::mem::size_of::<cudaMemAllocNodeParams>(),
+        120usize,
+        concat!("Size of: ", stringify!(cudaMemAllocNodeParams))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<cudaMemAllocNodeParams>(),
+        8usize,
+        concat!("Alignment of ", stringify!(cudaMemAllocNodeParams))
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<cudaMemAllocNodeParams>())).poolProps as *const _ as usize
+        },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(cudaMemAllocNodeParams),
+            "::",
+            stringify!(poolProps)
+        )
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<cudaMemAllocNodeParams>())).accessDescs as *const _ as usize
+        },
+        88usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(cudaMemAllocNodeParams),
+            "::",
+            stringify!(accessDescs)
+        )
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<cudaMemAllocNodeParams>())).accessDescCount as *const _ as usize
+        },
+        96usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(cudaMemAllocNodeParams),
+            "::",
+            stringify!(accessDescCount)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<cudaMemAllocNodeParams>())).bytesize as *const _ as usize },
+        104usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(cudaMemAllocNodeParams),
+            "::",
+            stringify!(bytesize)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<cudaMemAllocNodeParams>())).dptr as *const _ as usize },
+        112usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(cudaMemAllocNodeParams),
+            "::",
+            stringify!(dptr)
+        )
+    );
+}
+impl Default for cudaMemAllocNodeParams {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
+#[doc = " (value type = cuuint64_t)"]
+#[doc = " Amount of memory, in bytes, currently associated with graphs."]
+pub const cudaGraphMemAttributeType_cudaGraphMemAttrUsedMemCurrent: cudaGraphMemAttributeType = 1;
+#[doc = " (value type = cuuint64_t)"]
+#[doc = " High watermark of memory, in bytes, associated with graphs since the"]
+#[doc = " last time it was reset.  High watermark can only be reset to zero."]
+pub const cudaGraphMemAttributeType_cudaGraphMemAttrUsedMemHigh: cudaGraphMemAttributeType = 2;
+#[doc = " (value type = cuuint64_t)"]
+#[doc = " Amount of memory, in bytes, currently allocated for use by"]
+#[doc = " the CUDA graphs asynchronous allocator."]
+pub const cudaGraphMemAttributeType_cudaGraphMemAttrReservedMemCurrent: cudaGraphMemAttributeType =
+    3;
+#[doc = " (value type = cuuint64_t)"]
+#[doc = " High watermark of memory, in bytes, currently allocated for use by"]
+#[doc = " the CUDA graphs asynchronous allocator."]
+pub const cudaGraphMemAttributeType_cudaGraphMemAttrReservedMemHigh: cudaGraphMemAttributeType = 4;
+#[doc = " Graph memory attributes"]
+pub type cudaGraphMemAttributeType = ::libc::c_uint;
 #[doc = "< A relative value indicating the performance of the link between two devices"]
 pub const cudaDeviceP2PAttr_cudaDevP2PAttrPerformanceRank: cudaDeviceP2PAttr = 1;
 #[doc = "< Peer access is enabled"]
@@ -6123,7 +6244,15 @@ pub const cudaGraphNodeType_cudaGraphNodeTypeEmpty: cudaGraphNodeType = 5;
 pub const cudaGraphNodeType_cudaGraphNodeTypeWaitEvent: cudaGraphNodeType = 6;
 #[doc = "< External event record node"]
 pub const cudaGraphNodeType_cudaGraphNodeTypeEventRecord: cudaGraphNodeType = 7;
-pub const cudaGraphNodeType_cudaGraphNodeTypeCount: cudaGraphNodeType = 8;
+#[doc = "< External semaphore signal node"]
+pub const cudaGraphNodeType_cudaGraphNodeTypeExtSemaphoreSignal: cudaGraphNodeType = 8;
+#[doc = "< External semaphore wait node"]
+pub const cudaGraphNodeType_cudaGraphNodeTypeExtSemaphoreWait: cudaGraphNodeType = 9;
+#[doc = "< Memory allocation node"]
+pub const cudaGraphNodeType_cudaGraphNodeTypeMemAlloc: cudaGraphNodeType = 10;
+#[doc = "< Memory free node"]
+pub const cudaGraphNodeType_cudaGraphNodeTypeMemFree: cudaGraphNodeType = 11;
+pub const cudaGraphNodeType_cudaGraphNodeTypeCount: cudaGraphNodeType = 12;
 #[doc = " CUDA Graph node types"]
 pub type cudaGraphNodeType = ::libc::c_uint;
 #[repr(C)]
@@ -6192,6 +6321,11 @@ pub const cudaGraphDebugDotFlags_cudaGraphDebugDotFlagsKernelNodeAttributes:
 pub const cudaGraphDebugDotFlags_cudaGraphDebugDotFlagsHandles: cudaGraphDebugDotFlags = 1024;
 #[doc = " CUDA Graph debug write options"]
 pub type cudaGraphDebugDotFlags = ::libc::c_uint;
+#[doc = "< Automatically free memory allocated in a graph before relaunching."]
+pub const cudaGraphInstantiateFlags_cudaGraphInstantiateFlagAutoFreeOnLaunch:
+    cudaGraphInstantiateFlags = 1;
+#[doc = " Flags for instantiating a graph"]
+pub type cudaGraphInstantiateFlags = ::libc::c_uint;
 #[doc = "< Zero boundary mode"]
 pub const cudaSurfaceBoundaryMode_cudaBoundaryModeZero: cudaSurfaceBoundaryMode = 0;
 #[doc = "< Clamp boundary mode"]
@@ -8412,17 +8546,12 @@ extern "C" {
 extern "C" {
     #[doc = " \\brief Sets flags to be used for device executions"]
     #[doc = ""]
-    #[doc = " Records \\p flags as the flags to use when initializing the current"]
-    #[doc = " device.  If no device has been made current to the calling thread,"]
-    #[doc = " then \\p flags will be applied to the initialization of any device"]
-    #[doc = " initialized by the calling host thread, unless that device has had"]
-    #[doc = " its initialization flags set explicitly by this or any host thread."]
-    #[doc = ""]
-    #[doc = " If the current device has been set and that device has already been"]
-    #[doc = " initialized then this call will fail with the error"]
-    #[doc = " ::cudaErrorSetOnActiveProcess.  In this case it is necessary"]
-    #[doc = " to reset \\p device using ::cudaDeviceReset() before the device's"]
-    #[doc = " initialization flags may be set."]
+    #[doc = " Records \\p flags as the flags for the current device. If the current device"]
+    #[doc = " has been set and that device has already been initialized, the previous flags"]
+    #[doc = " are overwritten. If the current device has not been initialized, it is"]
+    #[doc = " initialized with the provided flags. If no device has been made current to"]
+    #[doc = " the calling thread, a default device is selected and initialized with the"]
+    #[doc = " provided flags."]
     #[doc = ""]
     #[doc = " The two LSBs of the \\p flags parameter can be used to control how the CPU"]
     #[doc = " thread interacts with the OS scheduler when waiting for results from the"]
@@ -8459,14 +8588,15 @@ extern "C" {
     #[doc = " - ::cudaDeviceLmemResizeToMax: Instruct CUDA to not reduce local memory"]
     #[doc = " after resizing local memory for a kernel. This can prevent thrashing by"]
     #[doc = " local memory allocations when launching many kernels with high local"]
-    #[doc = " memory usage at the cost of potentially increased memory usage."]
+    #[doc = " memory usage at the cost of potentially increased memory usage. <br>"]
+    #[doc = " \\ref deprecated \"Deprecated:\" This flag is deprecated and the behavior enabled"]
+    #[doc = " by this flag is now the default and cannot be disabled."]
     #[doc = ""]
     #[doc = " \\param flags - Parameters for device operation"]
     #[doc = ""]
     #[doc = " \\return"]
     #[doc = " ::cudaSuccess,"]
     #[doc = " ::cudaErrorInvalidValue,"]
-    #[doc = " ::cudaErrorSetOnActiveProcess"]
     #[doc = " \\notefnerr"]
     #[doc = " \\note_init_rt"]
     #[doc = " \\note_callback"]
@@ -8480,14 +8610,12 @@ extern "C" {
 extern "C" {
     #[doc = " \\brief Gets the flags for the current device"]
     #[doc = ""]
-    #[doc = " Returns in \\p flags the flags for the current device.  If there is a"]
-    #[doc = " current device for the calling thread, and the device has been initialized"]
-    #[doc = " or flags have been set on that device specifically, the flags for the"]
-    #[doc = " device are returned.  If there is no current device, but flags have been"]
-    #[doc = " set for the thread with ::cudaSetDeviceFlags, the thread flags are returned."]
-    #[doc = " Finally, if there is no current device and no thread flags, the flags for"]
-    #[doc = " the first device are returned, which may be the default flags.  Compare"]
-    #[doc = " to the behavior of ::cudaSetDeviceFlags."]
+    #[doc = ""]
+    #[doc = " Returns in \\p flags the flags for the current device. If there is a current"]
+    #[doc = " device for the calling thread, the flags for the device are returned. If"]
+    #[doc = " there is no current device, the flags for the first device are returned,"]
+    #[doc = " which may be the default flags.  Compare to the behavior of"]
+    #[doc = " ::cudaSetDeviceFlags."]
     #[doc = ""]
     #[doc = " Typically, the flags returned should match the behavior that will be seen"]
     #[doc = " if the calling thread uses a device after this call, without any change to"]
@@ -13608,6 +13736,9 @@ extern "C" {
     #[doc = " \\note Basic stream ordering allows future work submitted into the same stream to use the allocation."]
     #[doc = "       Stream query, stream synchronize, and CUDA events can be used to guarantee that the allocation"]
     #[doc = "       operation completes before work submitted in a separate stream runs."]
+    #[doc = " \\note During stream capture, this function results in the creation of an allocation node.  In this case,"]
+    #[doc = "       the allocation is owned by the graph instead of the memory pool. The memory pool's properties"]
+    #[doc = "       are used to set the node's creation parameters."]
     #[doc = ""]
     #[doc = " \\param[out] devPtr  - Returned device pointer"]
     #[doc = " \\param[in] size     - Number of bytes to allocate"]
@@ -13639,6 +13770,9 @@ extern "C" {
     #[doc = " The allocation must not be accessed after stream execution reaches the free."]
     #[doc = " After this API returns, accessing the memory from any subsequent work launched on the GPU"]
     #[doc = " or querying its pointer attributes results in undefined behavior."]
+    #[doc = ""]
+    #[doc = " \\note During stream capture, this function results in the creation of a free node and"]
+    #[doc = "       must therefore be passed the address of a graph allocation."]
     #[doc = ""]
     #[doc = " \\param dptr - memory to free"]
     #[doc = " \\param hStream - The stream establishing the stream ordering promise"]
@@ -13851,6 +13985,10 @@ extern "C" {
     #[doc = "    -  Basic stream ordering allows future work submitted into the same stream to use the allocation."]
     #[doc = "       Stream query, stream synchronize, and CUDA events can be used to guarantee that the allocation"]
     #[doc = "       operation completes before work submitted in a separate stream runs."]
+    #[doc = ""]
+    #[doc = " \\note During stream capture, this function results in the creation of an allocation node.  In this case,"]
+    #[doc = "       the allocation is owned by the graph instead of the memory pool. The memory pool's properties"]
+    #[doc = "       are used to set the node's creation parameters."]
     #[doc = ""]
     #[doc = " \\param[out] ptr     - Returned device pointer"]
     #[doc = " \\param[in] bytesize - Number of bytes to allocate"]
@@ -15873,6 +16011,8 @@ extern "C" {
     #[doc = " at the root of the graph. \\p pDependencies may not have any duplicate entries."]
     #[doc = " A handle to the new node will be returned in \\p pGraphNode."]
     #[doc = ""]
+    #[doc = " If \\p hGraph contains allocation or free nodes, this call will return an error."]
+    #[doc = ""]
     #[doc = " The node executes an embedded child graph. The child graph is cloned in this call."]
     #[doc = ""]
     #[doc = " \\param pGraphNode     - Returns newly created node"]
@@ -15913,6 +16053,9 @@ extern "C" {
     #[doc = " Gets a handle to the embedded graph in a child graph node. This call"]
     #[doc = " does not clone the graph. Changes to the graph will be reflected in"]
     #[doc = " the node, and the node retains ownership of the graph."]
+    #[doc = ""]
+    #[doc = " Allocation and free nodes cannot be added to the returned graph."]
+    #[doc = " Attempting to do so will return an error."]
     #[doc = ""]
     #[doc = " \\param node   - Node to get the embedded graph for"]
     #[doc = " \\param pGraph - Location to store a handle to the graph"]
@@ -16054,6 +16197,53 @@ extern "C" {
     pub fn cudaGraphExternalSemaphoresWaitNodeSetParams(
         hNode: cudaGraphNode_t,
         nodeParams: *const cudaExternalSemaphoreWaitNodeParams,
+    ) -> cudaError_t;
+}
+extern "C" {
+    pub fn cudaGraphAddMemAllocNode(
+        pGraphNode: *mut cudaGraphNode_t,
+        graph: cudaGraph_t,
+        pDependencies: *const cudaGraphNode_t,
+        numDependencies: size_t,
+        nodeParams: *mut cudaMemAllocNodeParams,
+    ) -> cudaError_t;
+}
+extern "C" {
+    pub fn cudaGraphMemAllocNodeGetParams(
+        node: cudaGraphNode_t,
+        params_out: *mut cudaMemAllocNodeParams,
+    ) -> cudaError_t;
+}
+extern "C" {
+    pub fn cudaGraphAddMemFreeNode(
+        pGraphNode: *mut cudaGraphNode_t,
+        graph: cudaGraph_t,
+        pDependencies: *const cudaGraphNode_t,
+        numDependencies: size_t,
+        dptr: *mut ::libc::c_void,
+    ) -> cudaError_t;
+}
+extern "C" {
+    pub fn cudaGraphMemFreeNodeGetParams(
+        node: cudaGraphNode_t,
+        dptr_out: *mut ::libc::c_void,
+    ) -> cudaError_t;
+}
+extern "C" {
+    pub fn cudaDeviceGraphMemTrim(device: ::libc::c_int) -> cudaError_t;
+}
+extern "C" {
+    pub fn cudaDeviceGetGraphMemAttribute(
+        device: ::libc::c_int,
+        attr: cudaGraphMemAttributeType,
+        value: *mut ::libc::c_void,
+    ) -> cudaError_t;
+}
+extern "C" {
+    pub fn cudaDeviceSetGraphMemAttribute(
+        device: ::libc::c_int,
+        attr: cudaGraphMemAttributeType,
+        value: *mut ::libc::c_void,
     ) -> cudaError_t;
 }
 extern "C" {
@@ -16398,6 +16588,9 @@ extern "C" {
     #[doc = " Removes \\p node from its graph. This operation also severs any dependencies of other nodes"]
     #[doc = " on \\p node and vice versa."]
     #[doc = ""]
+    #[doc = " Dependencies cannot be removed from graphs which contain allocation or free nodes."]
+    #[doc = " Any attempt to do so will return an error."]
+    #[doc = ""]
     #[doc = " \\param node  - Node to remove"]
     #[doc = ""]
     #[doc = " \\return"]
@@ -16448,6 +16641,7 @@ extern "C" {
     #[doc = " \\note_callback"]
     #[doc = ""]
     #[doc = " \\sa"]
+    #[doc = " ::cudaGraphInstantiateWithFlags,"]
     #[doc = " ::cudaGraphCreate,"]
     #[doc = " ::cudaGraphUpload,"]
     #[doc = " ::cudaGraphLaunch,"]
@@ -16458,6 +16652,13 @@ extern "C" {
         pErrorNode: *mut cudaGraphNode_t,
         pLogBuffer: *mut ::libc::c_char,
         bufferSize: size_t,
+    ) -> cudaError_t;
+}
+extern "C" {
+    pub fn cudaGraphInstantiateWithFlags(
+        pGraphExec: *mut cudaGraphExec_t,
+        graph: cudaGraph_t,
+        flags: ::libc::c_ulonglong,
     ) -> cudaError_t;
 }
 extern "C" {
@@ -16806,6 +17007,10 @@ extern "C" {
     #[doc = " at a time. Each launch is ordered behind both any previous work in \\p stream"]
     #[doc = " and any previous launches of \\p graphExec. To execute a graph concurrently, it must be"]
     #[doc = " instantiated multiple times into multiple executable graphs."]
+    #[doc = ""]
+    #[doc = " If any allocations created by \\p graphExec remain unfreed (from a previous launch) and"]
+    #[doc = " \\p graphExec was not instantiated with ::cudaGraphInstantiateFlagAutoFreeOnLaunch,"]
+    #[doc = " the launch will fail with ::cudaErrorInvalidValue."]
     #[doc = ""]
     #[doc = " \\param graphExec - Executable graph to launch"]
     #[doc = " \\param stream    - Stream in which to launch the graph"]
